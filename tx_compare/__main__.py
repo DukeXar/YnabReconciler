@@ -6,7 +6,7 @@ from pathlib import Path
 
 from tx_compare.csv_parser import parse_csv_transactions
 from tx_compare.matcher import MatchConfig, find_missing
-from tx_compare.models import MissingTransaction
+from tx_compare.models import MissingTransaction, Transaction
 from tx_compare.pdf_parser import parse_pdf_transactions
 
 
@@ -18,9 +18,19 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     compare = subparsers.add_parser("compare", help="Compare two sources")
-    compare.add_argument("--csv", required=True, type=Path, help="Path to CSV file")
     compare.add_argument(
-        "--pdf", required=True, type=Path, help="Path to PDF statement"
+        "--csv",
+        required=True,
+        nargs="+",
+        type=Path,
+        help="One or more CSV file paths",
+    )
+    compare.add_argument(
+        "--pdf",
+        required=True,
+        nargs="+",
+        type=Path,
+        help="One or more PDF statement paths",
     )
     compare.add_argument(
         "--out-csv",
@@ -144,9 +154,35 @@ def write_human_report(path: Path, report_text: str) -> None:
     path.write_text(report_text + "\n", encoding="utf-8")
 
 
+def dedupe_transactions(transactions: list[Transaction]) -> list[Transaction]:
+    deduped: list[Transaction] = []
+    seen: set[tuple[str, float, str]] = set()
+    for tx in transactions:
+        key = (tx.tx_date.isoformat(), tx.amount, tx.merchant_norm)
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(tx)
+    return deduped
+
+
+def load_csv_transactions(paths: list[Path]) -> tuple[list[Transaction], int]:
+    all_rows: list[Transaction] = []
+    for path in paths:
+        all_rows.extend(parse_csv_transactions(path))
+    return dedupe_transactions(all_rows), len(all_rows)
+
+
+def load_pdf_transactions(paths: list[Path]) -> tuple[list[Transaction], int]:
+    all_rows: list[Transaction] = []
+    for path in paths:
+        all_rows.extend(parse_pdf_transactions(path))
+    return dedupe_transactions(all_rows), len(all_rows)
+
+
 def run_compare(args: argparse.Namespace) -> int:
-    csv_transactions = parse_csv_transactions(args.csv)
-    pdf_transactions = parse_pdf_transactions(args.pdf)
+    csv_transactions, csv_rows_raw = load_csv_transactions(args.csv)
+    pdf_transactions, pdf_rows_raw = load_pdf_transactions(args.pdf)
     config = MatchConfig(
         amount_tolerance=args.amount_tolerance,
         merchant_threshold=args.merchant_threshold,
@@ -158,8 +194,12 @@ def run_compare(args: argparse.Namespace) -> int:
         config=config,
     )
 
-    print(f"CSV rows parsed: {len(csv_transactions)}")
-    print(f"PDF rows parsed: {len(pdf_transactions)}")
+    print(
+        f"CSV files: {len(args.csv)} | rows parsed: {csv_rows_raw} | after dedup: {len(csv_transactions)}"
+    )
+    print(
+        f"PDF files: {len(args.pdf)} | rows parsed: {pdf_rows_raw} | after dedup: {len(pdf_transactions)}"
+    )
     if window is None:
         print("Overlap window: none")
     else:

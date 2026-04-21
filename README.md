@@ -25,9 +25,19 @@ pip install -r requirements.txt
 
 ```bash
 python3 -m tx_compare compare \
-  --csv "./SampleData/Selected Transactions for Anton's Budget as of 2026-04-21 18-08.csv" \
-  --pdf "./SampleData/27_Jan_2026_-_26_Feb_2026.pdf"
+  --csv ./SampleData/transactions_1.csv ./SampleData/transactions_2.csv \
+  --pdf ./SampleData/statement_1.pdf ./SampleData/statement_2.pdf
 ```
+
+Wildcard example (shell expansion):
+
+```bash
+python3 -m tx_compare compare \
+  --csv ./SampleData/*.csv \
+  --pdf ./SampleData/*.pdf
+```
+
+Use unquoted wildcards so your shell expands them.
 
 This prints a human-readable table to the terminal by default.
 
@@ -50,3 +60,4 @@ Exit code:
 
 - CSV parser expects columns like `Date`, `Payee`, `Outflow`, `Inflow`.
 - PDF parser is optimized for Amex-style statement transaction rows.
+- Duplicate transactions across multiple CSV inputs (or multiple PDF inputs) are deduplicated by normalized `(date, amount, merchant)`.
