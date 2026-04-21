@@ -1,0 +1,13 @@
+__pycache__/
+.pytest_cache/
+.venv/
+venv/
+*.pyc
+*.pyo
+*.pyd
+dist/
+build/
+.DS_Store
+SampleData/
+missing_report.csv
+SampleData/
