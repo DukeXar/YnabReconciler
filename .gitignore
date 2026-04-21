@@ -8,6 +8,6 @@ venv/
 dist/
 build/
 .DS_Store
-SampleData/
 missing_report.csv
+missing_report.txt
 SampleData/

@@ -26,9 +26,15 @@ pip install -r requirements.txt
 ```bash
 python3 -m tx_compare compare \
   --csv "./SampleData/Selected Transactions for Anton's Budget as of 2026-04-21 18-08.csv" \
-  --pdf "./SampleData/27_Jan_2026_-_26_Feb_2026.pdf" \
-  --out ./missing_report.csv
+  --pdf "./SampleData/27_Jan_2026_-_26_Feb_2026.pdf"
 ```
+
+This prints a human-readable table to the terminal by default.
+
+Optional report outputs:
+
+- `--out-text ./missing_report.txt` to save the human-readable report
+- `--out-csv ./missing_report.csv` to save a machine-readable CSV report
 
 Optional tuning:
 

@@ -23,10 +23,23 @@ def build_parser() -> argparse.ArgumentParser:
         "--pdf", required=True, type=Path, help="Path to PDF statement"
     )
     compare.add_argument(
-        "--out",
+        "--out-csv",
         type=Path,
         default=None,
         help="Optional output CSV report path",
+    )
+    compare.add_argument(
+        "--out",
+        dest="out_csv",
+        type=Path,
+        default=None,
+        help=argparse.SUPPRESS,
+    )
+    compare.add_argument(
+        "--out-text",
+        type=Path,
+        default=None,
+        help="Optional output plain-text report path",
     )
     compare.add_argument(
         "--merchant-threshold",
@@ -71,15 +84,64 @@ def write_missing_report(path: Path, rows: list[MissingTransaction]) -> None:
             )
 
 
-def _print_preview(label: str, rows: list[MissingTransaction], limit: int = 10) -> None:
-    print(label)
+def _human_rows(
+    missing_in_csv: list[MissingTransaction], missing_in_pdf: list[MissingTransaction]
+) -> list[tuple[str, str, str, str]]:
+    rows: list[tuple[str, str, str, str]] = []
+    for row in missing_in_csv:
+        rows.append(
+            (
+                row.tx_date.isoformat(),
+                f"{row.amount:.2f}",
+                row.merchant,
+                "CSV",
+            )
+        )
+    for row in missing_in_pdf:
+        rows.append(
+            (
+                row.tx_date.isoformat(),
+                f"{row.amount:.2f}",
+                row.merchant,
+                "PDF",
+            )
+        )
+    rows.sort(key=lambda item: (item[0], float(item[1]), item[2].lower(), item[3]))
+    return rows
+
+
+def build_human_report(
+    missing_in_csv: list[MissingTransaction], missing_in_pdf: list[MissingTransaction]
+) -> str:
+    rows = _human_rows(missing_in_csv, missing_in_pdf)
+    header = ["Date", "Amount", "Merchant", "Missing In"]
     if not rows:
-        print("  (none)")
-        return
-    for row in rows[:limit]:
-        print(f"  {row.tx_date.isoformat()}  {row.amount:8.2f}  {row.merchant}")
-    if len(rows) > limit:
-        print(f"  ... and {len(rows) - limit} more")
+        return "Missing Transactions:\n(none)"
+
+    date_width = max(len(header[0]), *(len(row[0]) for row in rows))
+    amount_width = max(len(header[1]), *(len(row[1]) for row in rows))
+    merchant_width = max(len(header[2]), *(len(row[2]) for row in rows))
+    location_width = max(len(header[3]), *(len(row[3]) for row in rows))
+
+    lines = ["Missing Transactions:"]
+    lines.append(
+        f"{header[0]:<{date_width}}  {header[1]:>{amount_width}}  "
+        f"{header[2]:<{merchant_width}}  {header[3]:<{location_width}}"
+    )
+    lines.append(
+        f"{'-' * date_width}  {'-' * amount_width}  {'-' * merchant_width}  {'-' * location_width}"
+    )
+    for row in rows:
+        lines.append(
+            f"{row[0]:<{date_width}}  {row[1]:>{amount_width}}  "
+            f"{row[2]:<{merchant_width}}  {row[3]:<{location_width}}"
+        )
+    return "\n".join(lines)
+
+
+def write_human_report(path: Path, report_text: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(report_text + "\n", encoding="utf-8")
 
 
 def run_compare(args: argparse.Namespace) -> int:
@@ -105,13 +167,18 @@ def run_compare(args: argparse.Namespace) -> int:
 
     print(f"Missing in CSV: {len(missing_in_csv)}")
     print(f"Missing in PDF: {len(missing_in_pdf)}")
-    _print_preview("\nTop missing in CSV:", missing_in_csv)
-    _print_preview("\nTop missing in PDF:", missing_in_pdf)
+    report_text = build_human_report(missing_in_csv, missing_in_pdf)
+    print()
+    print(report_text)
 
-    if args.out:
+    if args.out_csv:
         combined = [*missing_in_csv, *missing_in_pdf]
-        write_missing_report(args.out, combined)
-        print(f"\nReport written to: {args.out}")
+        write_missing_report(args.out_csv, combined)
+        print(f"\nCSV report written to: {args.out_csv}")
+
+    if args.out_text:
+        write_human_report(args.out_text, report_text)
+        print(f"Text report written to: {args.out_text}")
 
     return 1 if missing_in_csv or missing_in_pdf else 0
 
