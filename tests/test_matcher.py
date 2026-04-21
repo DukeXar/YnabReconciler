@@ -19,6 +19,15 @@ def _tx(source: str, day: int, amount: float, merchant: str) -> Transaction:
 
 
 class MatcherTests(unittest.TestCase):
+    def test_default_config_ignores_merchant_names(self) -> None:
+        csv_rows = [_tx("csv", 2, 9.49, "Ryman Stationery")]
+        pdf_rows = [_tx("pdf", 2, 9.49, "1167 Clapham J London")]
+
+        missing_in_csv, missing_in_pdf, _ = find_missing(csv_rows, pdf_rows)
+
+        self.assertEqual(missing_in_csv, [])
+        self.assertEqual(missing_in_pdf, [])
+
     def test_all_transactions_match_without_missing(self) -> None:
         csv_rows = [
             _tx("csv", 28, 9.20, "Waitrose"),
@@ -87,6 +96,25 @@ class MatcherTests(unittest.TestCase):
         self.assertEqual(missing_in_pdf, [])
         self.assertEqual(len(missing_in_csv), 1)
         self.assertEqual(missing_in_csv[0].merchant, "Trainline")
+
+    def test_can_skip_merchant_check_via_config(self) -> None:
+        csv_rows = [_tx("csv", 28, 22.24, "B Century")]
+        pdf_rows = [_tx("pdf", 28, 22.24, "Some Other Merchant")]
+
+        with_merchant = MatchConfig(check_merchant=True, merchant_threshold=0.95)
+        without_merchant = MatchConfig(check_merchant=False, merchant_threshold=0.95)
+
+        missing_in_csv_strict, missing_in_pdf_strict, _ = find_missing(
+            csv_rows, pdf_rows, with_merchant
+        )
+        missing_in_csv_skip, missing_in_pdf_skip, _ = find_missing(
+            csv_rows, pdf_rows, without_merchant
+        )
+
+        self.assertEqual(len(missing_in_csv_strict), 1)
+        self.assertEqual(len(missing_in_pdf_strict), 1)
+        self.assertEqual(missing_in_csv_skip, [])
+        self.assertEqual(missing_in_pdf_skip, [])
 
 
 if __name__ == "__main__":

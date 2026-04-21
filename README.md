@@ -50,6 +50,8 @@ Optional tuning:
 
 - `--merchant-threshold` (default `0.55`): merchant name similarity requirement
 - `--amount-tolerance` (default `0.01`): tolerated amount delta
+- by default merchant names are ignored and matching uses date/amount
+- `--merchant-check`: also require merchant-name similarity for matching
 
 Exit code:
 

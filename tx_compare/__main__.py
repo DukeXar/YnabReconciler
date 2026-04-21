@@ -63,6 +63,18 @@ def build_parser() -> argparse.ArgumentParser:
         default=0.01,
         help="Allowed amount delta for matching",
     )
+    compare.add_argument(
+        "--merchant-check",
+        action="store_true",
+        help="Enable merchant-name similarity check (off by default)",
+    )
+    compare.add_argument(
+        "--no-merchant-check",
+        dest="merchant_check",
+        action="store_false",
+        help=argparse.SUPPRESS,
+    )
+    compare.set_defaults(merchant_check=False)
     return parser
 
 
@@ -186,6 +198,7 @@ def run_compare(args: argparse.Namespace) -> int:
     config = MatchConfig(
         amount_tolerance=args.amount_tolerance,
         merchant_threshold=args.merchant_threshold,
+        check_merchant=args.merchant_check,
     )
 
     missing_in_csv, missing_in_pdf, window = find_missing(

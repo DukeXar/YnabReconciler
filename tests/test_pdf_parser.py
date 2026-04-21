@@ -28,9 +28,45 @@ CR
 """
         rows = parse_layout_page_text(text, (date(2026, 1, 27), date(2026, 2, 26)))
 
-        self.assertEqual(len(rows), 1)
+        self.assertEqual(len(rows), 2)
         self.assertEqual(rows[0].tx_date, date(2026, 1, 25))
         self.assertEqual(rows[0].amount, 15.19)
+        self.assertEqual(rows[1].tx_date, date(2026, 2, 6))
+        self.assertEqual(rows[1].merchant_raw, "PAYMENT RECEIVED - THANK YOU")
+        self.assertEqual(rows[1].amount, -1000.00)
+
+    def test_parse_layout_page_text_marks_credit_from_descriptor_line(self) -> None:
+        text = """
+Jan4 Jan4 DELIVEROO 5.00
+DeliverooGoldBenefit CR
+"""
+        rows = parse_layout_page_text(text, (date(2025, 12, 27), date(2026, 1, 26)))
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0].merchant_raw, "DELIVEROO")
+        self.assertEqual(rows[0].amount, -5.00)
+
+    def test_parse_layout_page_text_includes_membership_fee(self) -> None:
+        text = """
+Feb26 Feb26 MEMBERSHIP FEE 195.00
+"""
+        rows = parse_layout_page_text(text, (date(2026, 1, 27), date(2026, 2, 26)))
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0].merchant_raw, "MEMBERSHIP FEE")
+        self.assertEqual(rows[0].amount, 195.00)
+
+    def test_parse_statement_text_marks_credit_when_cr_follows(self) -> None:
+        text = """
+From 27 January to 26 February 2026
+Feb 8 Feb 8 DELIVEROO 5.00
+CR
+"""
+        rows = parse_statement_text(text)
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0].merchant_raw, "DELIVEROO")
+        self.assertEqual(rows[0].amount, -5.00)
 
 
 if __name__ == "__main__":

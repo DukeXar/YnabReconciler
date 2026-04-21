@@ -38,6 +38,10 @@ MONTHS_LONG = {
 }
 
 
+def _has_credit_marker(text: str) -> bool:
+    return re.search(r"\bCR\b", text) is not None
+
+
 def parse_pdf_transactions(pdf_path: Path) -> list[Transaction]:
     try:
         from pypdf import PdfReader
@@ -105,8 +109,6 @@ def parse_statement_text(text: str) -> list[Transaction]:
     )
 
     blacklist = {
-        "payment received",
-        "membership fee",
         "total new spend transactions",
         "total of other account transactions",
     }
@@ -122,7 +124,11 @@ def parse_statement_text(text: str) -> list[Transaction]:
         month = MONTHS_SHORT[mon_name]
         year = _infer_year_for_tx(month, period_start, period_end)
         tx_date = date(year, month, int(day_str))
-        amount = round(float(amount_str.replace(",", "")), 2)
+        amount = float(amount_str.replace(",", ""))
+        trailing_window = text[match.end() : match.end() + 80]
+        if _has_credit_marker(trailing_window):
+            amount = -amount
+        amount = round(amount, 2)
 
         transactions.append(
             Transaction(
@@ -151,7 +157,6 @@ def parse_layout_page_text(
     )
 
     blacklist = {
-        "payment received",
         "statement of account",
         "transaction date",
         "total new spend transactions",
@@ -175,7 +180,7 @@ def parse_layout_page_text(
             continue
 
         amount = float(amount_str.replace(",", ""))
-        if index + 1 < len(lines) and lines[index + 1] == "CR":
+        if index + 1 < len(lines) and _has_credit_marker(lines[index + 1]):
             amount = -amount
             index += 1
 

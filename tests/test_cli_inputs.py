@@ -24,6 +24,15 @@ class CLIInputTests(unittest.TestCase):
 
         self.assertEqual([str(path) for path in args.csv], ["a.csv", "b.csv"])
         self.assertEqual([str(path) for path in args.pdf], ["one.pdf", "two.pdf"])
+        self.assertFalse(args.merchant_check)
+
+    def test_parser_can_enable_merchant_check(self) -> None:
+        parser = build_parser()
+        args = parser.parse_args(
+            ["compare", "--csv", "a.csv", "--pdf", "one.pdf", "--merchant-check"]
+        )
+
+        self.assertTrue(args.merchant_check)
 
     def test_deduplicate_transactions_by_date_amount_merchant_norm(self) -> None:
         first = Transaction(

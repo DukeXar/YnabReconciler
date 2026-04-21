@@ -11,6 +11,7 @@ from tx_compare.models import MissingTransaction, Transaction
 class MatchConfig:
     amount_tolerance: float = 0.01
     merchant_threshold: float = 0.55
+    check_merchant: bool = False
 
 
 def _merchant_similarity(left: str, right: str) -> float:
@@ -34,6 +35,8 @@ def _match_index(
             continue
         if abs(tx.amount - cand.amount) > config.amount_tolerance:
             continue
+        if not config.check_merchant:
+            return idx
         score = _merchant_similarity(tx.merchant_norm, cand.merchant_norm)
         if score < config.merchant_threshold:
             continue
