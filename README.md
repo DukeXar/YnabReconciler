@@ -62,4 +62,4 @@ Exit code:
 
 - CSV parser expects columns like `Date`, `Payee`, `Outflow`, `Inflow`.
 - PDF parser is optimized for Amex-style statement transaction rows.
-- Duplicate transactions across multiple CSV inputs (or multiple PDF inputs) are deduplicated by normalized `(date, amount, merchant)`.
+- Transactions from multiple input files are kept as provided; overlapping files are treated as distinct input.

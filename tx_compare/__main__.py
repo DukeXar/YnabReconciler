@@ -166,35 +166,23 @@ def write_human_report(path: Path, report_text: str) -> None:
     path.write_text(report_text + "\n", encoding="utf-8")
 
 
-def dedupe_transactions(transactions: list[Transaction]) -> list[Transaction]:
-    deduped: list[Transaction] = []
-    seen: set[tuple[str, float, str]] = set()
-    for tx in transactions:
-        key = (tx.tx_date.isoformat(), tx.amount, tx.merchant_norm)
-        if key in seen:
-            continue
-        seen.add(key)
-        deduped.append(tx)
-    return deduped
-
-
-def load_csv_transactions(paths: list[Path]) -> tuple[list[Transaction], int]:
+def load_csv_transactions(paths: list[Path]) -> list[Transaction]:
     all_rows: list[Transaction] = []
     for path in paths:
         all_rows.extend(parse_csv_transactions(path))
-    return dedupe_transactions(all_rows), len(all_rows)
+    return all_rows
 
 
-def load_pdf_transactions(paths: list[Path]) -> tuple[list[Transaction], int]:
+def load_pdf_transactions(paths: list[Path]) -> list[Transaction]:
     all_rows: list[Transaction] = []
     for path in paths:
         all_rows.extend(parse_pdf_transactions(path))
-    return dedupe_transactions(all_rows), len(all_rows)
+    return all_rows
 
 
 def run_compare(args: argparse.Namespace) -> int:
-    csv_transactions, csv_rows_raw = load_csv_transactions(args.csv)
-    pdf_transactions, pdf_rows_raw = load_pdf_transactions(args.pdf)
+    csv_transactions = load_csv_transactions(args.csv)
+    pdf_transactions = load_pdf_transactions(args.pdf)
     config = MatchConfig(
         amount_tolerance=args.amount_tolerance,
         merchant_threshold=args.merchant_threshold,
@@ -207,12 +195,8 @@ def run_compare(args: argparse.Namespace) -> int:
         config=config,
     )
 
-    print(
-        f"CSV files: {len(args.csv)} | rows parsed: {csv_rows_raw} | after dedup: {len(csv_transactions)}"
-    )
-    print(
-        f"PDF files: {len(args.pdf)} | rows parsed: {pdf_rows_raw} | after dedup: {len(pdf_transactions)}"
-    )
+    print(f"CSV files: {len(args.csv)} | rows parsed: {len(csv_transactions)}")
+    print(f"PDF files: {len(args.pdf)} | rows parsed: {len(pdf_transactions)}")
     if window is None:
         print("Overlap window: none")
     else:

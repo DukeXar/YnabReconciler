@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import unittest
 from datetime import date
+from pathlib import Path
+from unittest.mock import patch
 
-from tx_compare.__main__ import build_parser, dedupe_transactions
+from tx_compare.__main__ import build_parser, load_csv_transactions
 from tx_compare.models import Transaction
 
 
@@ -34,7 +36,7 @@ class CLIInputTests(unittest.TestCase):
 
         self.assertTrue(args.merchant_check)
 
-    def test_deduplicate_transactions_by_date_amount_merchant_norm(self) -> None:
+    def test_load_csv_transactions_keeps_overlapping_rows(self) -> None:
         first = Transaction(
             source="csv",
             tx_date=date(2026, 1, 1),
@@ -60,11 +62,16 @@ class CLIInputTests(unittest.TestCase):
             raw_line="line 3",
         )
 
-        deduped = dedupe_transactions([first, duplicate, distinct])
+        with patch(
+            "tx_compare.__main__.parse_csv_transactions",
+            side_effect=[[first, duplicate], [distinct]],
+        ):
+            rows = load_csv_transactions([Path("a.csv"), Path("b.csv")])
 
-        self.assertEqual(len(deduped), 2)
-        self.assertEqual(deduped[0], first)
-        self.assertEqual(deduped[1], distinct)
+        self.assertEqual(len(rows), 3)
+        self.assertEqual(rows[0], first)
+        self.assertEqual(rows[1], duplicate)
+        self.assertEqual(rows[2], distinct)
 
 
 if __name__ == "__main__":
