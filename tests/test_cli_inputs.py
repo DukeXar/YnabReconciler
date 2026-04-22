@@ -26,8 +26,28 @@ class CLIInputTests(unittest.TestCase):
 
         self.assertEqual([str(path) for path in args.ynab], ["a.csv", "b.csv"])
         self.assertEqual([str(path) for path in args.amex_pdf], ["one.pdf", "two.pdf"])
+        self.assertIsNone(args.amex_csv)
         self.assertIsNone(args.revo_csv)
         self.assertFalse(args.merchant_check)
+
+    def test_parser_accepts_multiple_ynab_and_amex_csv_paths(self) -> None:
+        parser = build_parser()
+        args = parser.parse_args(
+            [
+                "compare",
+                "--ynab",
+                "a.csv",
+                "b.csv",
+                "--amex-csv",
+                "one.csv",
+                "two.csv",
+            ]
+        )
+
+        self.assertEqual([str(path) for path in args.ynab], ["a.csv", "b.csv"])
+        self.assertEqual([str(path) for path in args.amex_csv], ["one.csv", "two.csv"])
+        self.assertIsNone(args.amex_pdf)
+        self.assertIsNone(args.revo_csv)
 
     def test_parser_accepts_multiple_ynab_and_revolut_csv_paths(self) -> None:
         parser = build_parser()
@@ -46,6 +66,7 @@ class CLIInputTests(unittest.TestCase):
         self.assertEqual([str(path) for path in args.ynab], ["a.csv", "b.csv"])
         self.assertEqual([str(path) for path in args.revo_csv], ["one.csv", "two.csv"])
         self.assertIsNone(args.amex_pdf)
+        self.assertIsNone(args.amex_csv)
 
     def test_parser_rejects_multiple_statement_types(self) -> None:
         parser = build_parser()
@@ -56,8 +77,21 @@ class CLIInputTests(unittest.TestCase):
                     "compare",
                     "--ynab",
                     "a.csv",
+                    "--amex-csv",
+                    "one.csv",
                     "--amex-pdf",
                     "one.pdf",
+                ]
+            )
+
+        with self.assertRaises(SystemExit):
+            parser.parse_args(
+                [
+                    "compare",
+                    "--ynab",
+                    "a.csv",
+                    "--amex-csv",
+                    "one.csv",
                     "--revo-csv",
                     "one.csv",
                 ]

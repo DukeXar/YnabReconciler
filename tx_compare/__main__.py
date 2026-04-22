@@ -4,6 +4,7 @@ import argparse
 import csv
 from pathlib import Path
 
+from tx_compare.amex_csv_parser import parse_amex_csv_transactions
 from tx_compare.csv_parser import parse_ynab_transactions
 from tx_compare.matcher import MatchConfig, find_missing
 from tx_compare.models import MissingTransaction, Transaction
@@ -32,6 +33,12 @@ def build_parser() -> argparse.ArgumentParser:
         nargs="+",
         type=Path,
         help="One or more AMEX PDF statement paths",
+    )
+    statements.add_argument(
+        "--amex-csv",
+        nargs="+",
+        type=Path,
+        help="One or more AMEX transaction export CSV paths",
     )
     statements.add_argument(
         "--revo-csv",
@@ -198,6 +205,13 @@ def load_amex_transactions(paths: list[Path]) -> list[Transaction]:
     return all_rows
 
 
+def load_amex_csv_transactions(paths: list[Path]) -> list[Transaction]:
+    all_rows: list[Transaction] = []
+    for path in paths:
+        all_rows.extend(parse_amex_csv_transactions(path))
+    return all_rows
+
+
 def load_revolut_transactions(paths: list[Path]) -> list[Transaction]:
     all_rows: list[Transaction] = []
     for path in paths:
@@ -212,6 +226,10 @@ def run_compare(args: argparse.Namespace) -> int:
         statement_paths = args.amex_pdf
         statement_label = "AMEX PDF"
         statement_transactions = load_amex_transactions(args.amex_pdf)
+    elif args.amex_csv:
+        statement_paths = args.amex_csv
+        statement_label = "AMEX CSV"
+        statement_transactions = load_amex_csv_transactions(args.amex_csv)
     else:
         statement_paths = args.revo_csv
         statement_label = "REVOLUT CSV"

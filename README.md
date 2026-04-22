@@ -3,7 +3,7 @@
 Command-line app to compare financial transactions from:
 
 - a YNAB CSV export
-- an AMEX PDF statement or Revolut account statement CSV
+- an AMEX PDF statement, AMEX transactions export CSV, or Revolut account statement CSV
 
 and report what is missing in each source.
 
@@ -37,6 +37,14 @@ python3 -m tx_compare compare \
   --revo-csv ./SampleData/Rev/account-statement*.csv
 ```
 
+AMEX transactions CSV example:
+
+```bash
+python3 -m tx_compare compare \
+  --ynab "./SampleData/Amex/Selected Transactions for Anton's Budget as of 2026-04-22 09-51.csv" \
+  --amex-csv ./SampleData/Amex/activity.csv
+```
+
 Use unquoted wildcards so your shell expands them.
 
 This prints a human-readable table to the terminal by default.
@@ -62,5 +70,6 @@ Exit code:
 
 - YNAB parser expects columns like `Date`, `Payee`, `Outflow`, `Inflow`.
 - AMEX parser is optimized for Amex-style PDF statement transaction rows.
+- AMEX CSV parser expects columns `Date`, `Description`, `Amount`.
 - Revolut parser expects account statement CSV columns like `Started Date`, `Description`, `Amount`, `Fee`, `State`.
 - Transactions from multiple input files are kept as provided; overlapping files are treated as distinct input.
