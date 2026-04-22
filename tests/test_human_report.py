@@ -9,9 +9,9 @@ from tx_compare.models import MissingTransaction
 
 class HumanReportTests(unittest.TestCase):
     def test_build_human_report_includes_required_columns(self) -> None:
-        missing_in_csv = [
+        missing_in_ynab = [
             MissingTransaction(
-                direction="missing_in_csv",
+                direction="missing_in_ynab",
                 tx_date=date(2026, 1, 26),
                 amount=9.74,
                 merchant="PRET A MANGER London",
@@ -19,9 +19,9 @@ class HumanReportTests(unittest.TestCase):
                 reason="r",
             )
         ]
-        missing_in_pdf = [
+        missing_in_statement = [
             MissingTransaction(
-                direction="missing_in_pdf",
+                direction="missing_in_statement",
                 tx_date=date(2026, 1, 27),
                 amount=44.27,
                 merchant="Patty & Bun",
@@ -30,7 +30,7 @@ class HumanReportTests(unittest.TestCase):
             )
         ]
 
-        report = build_human_report(missing_in_csv, missing_in_pdf)
+        report = build_human_report(missing_in_ynab, missing_in_statement)
 
         self.assertIn("Date", report)
         self.assertIn("Amount", report)
