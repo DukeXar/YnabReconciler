@@ -36,8 +36,8 @@ class HumanReportTests(unittest.TestCase):
         self.assertIn("Amount", report)
         self.assertIn("Merchant", report)
         self.assertIn("Missing In", report)
-        self.assertIn("CSV", report)
-        self.assertIn("PDF", report)
+        self.assertIn("YNAB", report)
+        self.assertIn("STATEMENT", report)
 
 
 if __name__ == "__main__":

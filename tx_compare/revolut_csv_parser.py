@@ -15,26 +15,30 @@ def _parse_money(value: str) -> float:
     return float(cleaned)
 
 
-def parse_ynab_transactions(csv_path: Path) -> list[Transaction]:
+def parse_revolut_csv_transactions(csv_path: Path) -> list[Transaction]:
     transactions: list[Transaction] = []
     with csv_path.open("r", encoding="utf-8-sig", newline="") as handle:
         reader = csv.DictReader(handle)
         for row in reader:
-            outflow = _parse_money(row.get("Outflow", ""))
-            inflow = _parse_money(row.get("Inflow", ""))
-            amount = round(outflow - inflow, 2)
-            if amount == 0:
+            state = (row.get("State") or "").strip().upper()
+            if state != "COMPLETED":
                 continue
 
-            merchant_raw = (row.get("Payee") or "").strip()
-            tx_date = datetime.strptime(
-                (row.get("Date") or "").strip(), "%d.%m.%Y"
-            ).date()
+            amount = _parse_money(row.get("Amount", ""))
+            fee = _parse_money(row.get("Fee", ""))
+            normalized_amount = round((-amount) + fee, 2)
+            if normalized_amount == 0:
+                continue
+
+            started = (row.get("Started Date") or "").strip()
+            tx_date = datetime.strptime(started[:10], "%Y-%m-%d").date()
+
+            merchant_raw = (row.get("Description") or "").strip()
             transactions.append(
                 Transaction(
-                    source="csv",
+                    source="revolut_csv",
                     tx_date=tx_date,
-                    amount=amount,
+                    amount=normalized_amount,
                     merchant_raw=merchant_raw,
                     merchant_norm=normalize_merchant(merchant_raw),
                     raw_line=str(row),

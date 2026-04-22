@@ -68,8 +68,8 @@ def filter_in_window(
 
 
 def find_missing(
-    csv_transactions: list[Transaction],
-    pdf_transactions: list[Transaction],
+    ynab_transactions: list[Transaction],
+    statement_transactions: list[Transaction],
     config: MatchConfig | None = None,
 ) -> tuple[
     list[MissingTransaction], list[MissingTransaction], tuple[date, date] | None
@@ -77,48 +77,48 @@ def find_missing(
     if config is None:
         config = MatchConfig()
 
-    window = overlap_window(csv_transactions, pdf_transactions)
-    csv_in_window = filter_in_window(csv_transactions, window)
-    pdf_in_window = filter_in_window(pdf_transactions, window)
+    window = overlap_window(ynab_transactions, statement_transactions)
+    ynab_in_window = filter_in_window(ynab_transactions, window)
+    statement_in_window = filter_in_window(statement_transactions, window)
 
-    used_pdf: set[int] = set()
-    missing_in_pdf: list[MissingTransaction] = []
+    used_statement: set[int] = set()
+    missing_in_statement: list[MissingTransaction] = []
 
-    for tx in csv_in_window:
-        idx = _match_index(tx, pdf_in_window, used_pdf, config)
+    for tx in ynab_in_window:
+        idx = _match_index(tx, statement_in_window, used_statement, config)
         if idx is None:
-            missing_in_pdf.append(
+            missing_in_statement.append(
                 MissingTransaction(
-                    direction="missing_in_pdf",
+                    direction="missing_in_statement",
                     tx_date=tx.tx_date,
                     amount=tx.amount,
                     merchant=tx.merchant_raw,
                     raw_line=tx.raw_line,
-                    reason="no PDF match on date/amount/merchant",
+                    reason="no statement match on date/amount/merchant",
                 )
             )
         else:
-            used_pdf.add(idx)
+            used_statement.add(idx)
 
-    used_csv: set[int] = set()
-    missing_in_csv: list[MissingTransaction] = []
+    used_ynab: set[int] = set()
+    missing_in_ynab: list[MissingTransaction] = []
 
-    for tx in pdf_in_window:
-        idx = _match_index(tx, csv_in_window, used_csv, config)
+    for tx in statement_in_window:
+        idx = _match_index(tx, ynab_in_window, used_ynab, config)
         if idx is None:
-            missing_in_csv.append(
+            missing_in_ynab.append(
                 MissingTransaction(
-                    direction="missing_in_csv",
+                    direction="missing_in_ynab",
                     tx_date=tx.tx_date,
                     amount=tx.amount,
                     merchant=tx.merchant_raw,
                     raw_line=tx.raw_line,
-                    reason="no CSV match on date/amount/merchant",
+                    reason="no YNAB match on date/amount/merchant",
                 )
             )
         else:
-            used_csv.add(idx)
+            used_ynab.add(idx)
 
-    missing_in_csv.sort(key=lambda x: (x.tx_date, x.amount, x.merchant.lower()))
-    missing_in_pdf.sort(key=lambda x: (x.tx_date, x.amount, x.merchant.lower()))
-    return missing_in_csv, missing_in_pdf, window
+    missing_in_ynab.sort(key=lambda x: (x.tx_date, x.amount, x.merchant.lower()))
+    missing_in_statement.sort(key=lambda x: (x.tx_date, x.amount, x.merchant.lower()))
+    return missing_in_ynab, missing_in_statement, window

@@ -4,33 +4,40 @@ import argparse
 import csv
 from pathlib import Path
 
-from tx_compare.csv_parser import parse_csv_transactions
+from tx_compare.csv_parser import parse_ynab_transactions
 from tx_compare.matcher import MatchConfig, find_missing
 from tx_compare.models import MissingTransaction, Transaction
 from tx_compare.pdf_parser import parse_pdf_transactions
+from tx_compare.revolut_csv_parser import parse_revolut_csv_transactions
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="tx-compare",
-        description="Compare CSV transactions to PDF statement transactions.",
+        description="Compare YNAB export transactions to statement transactions.",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     compare = subparsers.add_parser("compare", help="Compare two sources")
     compare.add_argument(
-        "--csv",
+        "--ynab",
         required=True,
         nargs="+",
         type=Path,
-        help="One or more CSV file paths",
+        help="One or more YNAB CSV export file paths",
     )
-    compare.add_argument(
-        "--pdf",
-        required=True,
+    statements = compare.add_mutually_exclusive_group(required=True)
+    statements.add_argument(
+        "--amex-pdf",
         nargs="+",
         type=Path,
-        help="One or more PDF statement paths",
+        help="One or more AMEX PDF statement paths",
+    )
+    statements.add_argument(
+        "--revo-csv",
+        nargs="+",
+        type=Path,
+        help="One or more Revolut account statement CSV paths",
     )
     compare.add_argument(
         "--out-csv",
@@ -107,25 +114,28 @@ def write_missing_report(path: Path, rows: list[MissingTransaction]) -> None:
 
 
 def _human_rows(
-    missing_in_csv: list[MissingTransaction], missing_in_pdf: list[MissingTransaction]
+    missing_in_ynab: list[MissingTransaction],
+    missing_in_statement: list[MissingTransaction],
+    ynab_label: str,
+    statement_label: str,
 ) -> list[tuple[str, str, str, str]]:
     rows: list[tuple[str, str, str, str]] = []
-    for row in missing_in_csv:
+    for row in missing_in_ynab:
         rows.append(
             (
                 row.tx_date.isoformat(),
                 f"{row.amount:.2f}",
                 row.merchant,
-                "CSV",
+                ynab_label,
             )
         )
-    for row in missing_in_pdf:
+    for row in missing_in_statement:
         rows.append(
             (
                 row.tx_date.isoformat(),
                 f"{row.amount:.2f}",
                 row.merchant,
-                "PDF",
+                statement_label,
             )
         )
     rows.sort(key=lambda item: (item[0], float(item[1]), item[2].lower(), item[3]))
@@ -133,9 +143,17 @@ def _human_rows(
 
 
 def build_human_report(
-    missing_in_csv: list[MissingTransaction], missing_in_pdf: list[MissingTransaction]
+    missing_in_ynab: list[MissingTransaction],
+    missing_in_statement: list[MissingTransaction],
+    ynab_label: str = "YNAB",
+    statement_label: str = "STATEMENT",
 ) -> str:
-    rows = _human_rows(missing_in_csv, missing_in_pdf)
+    rows = _human_rows(
+        missing_in_ynab,
+        missing_in_statement,
+        ynab_label,
+        statement_label,
+    )
     header = ["Date", "Amount", "Merchant", "Missing In"]
     if not rows:
         return "Missing Transactions:\n(none)"
@@ -166,50 +184,74 @@ def write_human_report(path: Path, report_text: str) -> None:
     path.write_text(report_text + "\n", encoding="utf-8")
 
 
-def load_csv_transactions(paths: list[Path]) -> list[Transaction]:
+def load_ynab_transactions(paths: list[Path]) -> list[Transaction]:
     all_rows: list[Transaction] = []
     for path in paths:
-        all_rows.extend(parse_csv_transactions(path))
+        all_rows.extend(parse_ynab_transactions(path))
     return all_rows
 
 
-def load_pdf_transactions(paths: list[Path]) -> list[Transaction]:
+def load_amex_transactions(paths: list[Path]) -> list[Transaction]:
     all_rows: list[Transaction] = []
     for path in paths:
         all_rows.extend(parse_pdf_transactions(path))
     return all_rows
 
 
+def load_revolut_transactions(paths: list[Path]) -> list[Transaction]:
+    all_rows: list[Transaction] = []
+    for path in paths:
+        all_rows.extend(parse_revolut_csv_transactions(path))
+    return all_rows
+
+
 def run_compare(args: argparse.Namespace) -> int:
-    csv_transactions = load_csv_transactions(args.csv)
-    pdf_transactions = load_pdf_transactions(args.pdf)
+    ynab_transactions = load_ynab_transactions(args.ynab)
+
+    if args.amex_pdf:
+        statement_paths = args.amex_pdf
+        statement_label = "AMEX PDF"
+        statement_transactions = load_amex_transactions(args.amex_pdf)
+    else:
+        statement_paths = args.revo_csv
+        statement_label = "REVOLUT CSV"
+        statement_transactions = load_revolut_transactions(args.revo_csv)
+
     config = MatchConfig(
         amount_tolerance=args.amount_tolerance,
         merchant_threshold=args.merchant_threshold,
         check_merchant=args.merchant_check,
     )
 
-    missing_in_csv, missing_in_pdf, window = find_missing(
-        csv_transactions=csv_transactions,
-        pdf_transactions=pdf_transactions,
+    missing_in_ynab, missing_in_statement, window = find_missing(
+        ynab_transactions=ynab_transactions,
+        statement_transactions=statement_transactions,
         config=config,
     )
 
-    print(f"CSV files: {len(args.csv)} | rows parsed: {len(csv_transactions)}")
-    print(f"PDF files: {len(args.pdf)} | rows parsed: {len(pdf_transactions)}")
+    print(f"YNAB files: {len(args.ynab)} | rows parsed: {len(ynab_transactions)}")
+    print(
+        f"{statement_label} files: {len(statement_paths)} | "
+        f"rows parsed: {len(statement_transactions)}"
+    )
     if window is None:
         print("Overlap window: none")
     else:
         print(f"Overlap window: {window[0].isoformat()} -> {window[1].isoformat()}")
 
-    print(f"Missing in CSV: {len(missing_in_csv)}")
-    print(f"Missing in PDF: {len(missing_in_pdf)}")
-    report_text = build_human_report(missing_in_csv, missing_in_pdf)
+    print(f"Missing in YNAB: {len(missing_in_ynab)}")
+    print(f"Missing in {statement_label}: {len(missing_in_statement)}")
+    report_text = build_human_report(
+        missing_in_ynab,
+        missing_in_statement,
+        ynab_label="YNAB",
+        statement_label=statement_label,
+    )
     print()
     print(report_text)
 
     if args.out_csv:
-        combined = [*missing_in_csv, *missing_in_pdf]
+        combined = [*missing_in_ynab, *missing_in_statement]
         write_missing_report(args.out_csv, combined)
         print(f"\nCSV report written to: {args.out_csv}")
 
@@ -217,7 +259,7 @@ def run_compare(args: argparse.Namespace) -> int:
         write_human_report(args.out_text, report_text)
         print(f"Text report written to: {args.out_text}")
 
-    return 1 if missing_in_csv or missing_in_pdf else 0
+    return 1 if missing_in_ynab or missing_in_statement else 0
 
 
 def main() -> int:

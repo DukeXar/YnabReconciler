@@ -2,8 +2,8 @@
 
 Command-line app to compare financial transactions from:
 
-- a CSV export
-- a PDF statement
+- a YNAB CSV export
+- an AMEX PDF statement or Revolut account statement CSV
 
 and report what is missing in each source.
 
@@ -25,16 +25,16 @@ pip install -r requirements.txt
 
 ```bash
 python3 -m tx_compare compare \
-  --csv ./SampleData/transactions_1.csv ./SampleData/transactions_2.csv \
-  --pdf ./SampleData/statement_1.pdf ./SampleData/statement_2.pdf
+  --ynab ./SampleData/Amex/*.csv \
+  --amex-pdf ./SampleData/Amex/*.pdf
 ```
 
-Wildcard example (shell expansion):
+Revolut example:
 
 ```bash
 python3 -m tx_compare compare \
-  --csv ./SampleData/*.csv \
-  --pdf ./SampleData/*.pdf
+  --ynab "./SampleData/Rev/Selected Transactions for Anton's Budget as of 2026-04-22 09-53.csv" \
+  --revo-csv ./SampleData/Rev/account-statement*.csv
 ```
 
 Use unquoted wildcards so your shell expands them.
@@ -60,6 +60,7 @@ Exit code:
 
 ## Notes
 
-- CSV parser expects columns like `Date`, `Payee`, `Outflow`, `Inflow`.
-- PDF parser is optimized for Amex-style statement transaction rows.
+- YNAB parser expects columns like `Date`, `Payee`, `Outflow`, `Inflow`.
+- AMEX parser is optimized for Amex-style PDF statement transaction rows.
+- Revolut parser expects account statement CSV columns like `Started Date`, `Description`, `Amount`, `Fee`, `State`.
 - Transactions from multiple input files are kept as provided; overlapping files are treated as distinct input.

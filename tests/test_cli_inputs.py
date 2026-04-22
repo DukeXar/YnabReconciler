@@ -5,38 +5,80 @@ from datetime import date
 from pathlib import Path
 from unittest.mock import patch
 
-from tx_compare.__main__ import build_parser, load_csv_transactions
+from tx_compare.__main__ import build_parser, load_ynab_transactions
 from tx_compare.models import Transaction
 
 
 class CLIInputTests(unittest.TestCase):
-    def test_parser_accepts_multiple_csv_and_pdf_paths(self) -> None:
+    def test_parser_accepts_multiple_ynab_and_amex_paths(self) -> None:
         parser = build_parser()
         args = parser.parse_args(
             [
                 "compare",
-                "--csv",
+                "--ynab",
                 "a.csv",
                 "b.csv",
-                "--pdf",
+                "--amex-pdf",
                 "one.pdf",
                 "two.pdf",
             ]
         )
 
-        self.assertEqual([str(path) for path in args.csv], ["a.csv", "b.csv"])
-        self.assertEqual([str(path) for path in args.pdf], ["one.pdf", "two.pdf"])
+        self.assertEqual([str(path) for path in args.ynab], ["a.csv", "b.csv"])
+        self.assertEqual([str(path) for path in args.amex_pdf], ["one.pdf", "two.pdf"])
+        self.assertIsNone(args.revo_csv)
         self.assertFalse(args.merchant_check)
+
+    def test_parser_accepts_multiple_ynab_and_revolut_csv_paths(self) -> None:
+        parser = build_parser()
+        args = parser.parse_args(
+            [
+                "compare",
+                "--ynab",
+                "a.csv",
+                "b.csv",
+                "--revo-csv",
+                "one.csv",
+                "two.csv",
+            ]
+        )
+
+        self.assertEqual([str(path) for path in args.ynab], ["a.csv", "b.csv"])
+        self.assertEqual([str(path) for path in args.revo_csv], ["one.csv", "two.csv"])
+        self.assertIsNone(args.amex_pdf)
+
+    def test_parser_rejects_multiple_statement_types(self) -> None:
+        parser = build_parser()
+
+        with self.assertRaises(SystemExit):
+            parser.parse_args(
+                [
+                    "compare",
+                    "--ynab",
+                    "a.csv",
+                    "--amex-pdf",
+                    "one.pdf",
+                    "--revo-csv",
+                    "one.csv",
+                ]
+            )
 
     def test_parser_can_enable_merchant_check(self) -> None:
         parser = build_parser()
         args = parser.parse_args(
-            ["compare", "--csv", "a.csv", "--pdf", "one.pdf", "--merchant-check"]
+            [
+                "compare",
+                "--ynab",
+                "a.csv",
+                "--amex-pdf",
+                "one.pdf",
+                "--merchant-check",
+            ]
         )
 
         self.assertTrue(args.merchant_check)
 
-    def test_load_csv_transactions_keeps_overlapping_rows(self) -> None:
+    def test_load_ynab_transactions_keeps_overlapping_rows(self) -> None:
         first = Transaction(
             source="csv",
             tx_date=date(2026, 1, 1),
@@ -63,10 +105,10 @@ class CLIInputTests(unittest.TestCase):
         )
 
         with patch(
-            "tx_compare.__main__.parse_csv_transactions",
+            "tx_compare.__main__.parse_ynab_transactions",
             side_effect=[[first, duplicate], [distinct]],
         ):
-            rows = load_csv_transactions([Path("a.csv"), Path("b.csv")])
+            rows = load_ynab_transactions([Path("a.csv"), Path("b.csv")])
 
         self.assertEqual(len(rows), 3)
         self.assertEqual(rows[0], first)
