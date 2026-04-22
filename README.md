@@ -9,6 +9,10 @@ and report what is missing in each source.
 
 By default it compares in both directions, but only inside the overlapping date window between both sources.
 
+This is useful for reconciliation of data in statements vs YNAB when there are too many transactions.
+
+Implemented with GPT-5.3 Codex.
+
 ## Requirements
 
 - Python 3.10+
